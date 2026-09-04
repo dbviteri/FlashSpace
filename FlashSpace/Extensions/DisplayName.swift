@@ -7,6 +7,8 @@
 
 import AppKit
 
+typealias DisplayName = String
+
 extension DisplayName {
     static var current: Self {
         NSScreen.main?.localizedName ?? ""

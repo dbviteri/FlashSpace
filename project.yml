@@ -11,23 +11,6 @@ options:
     icon:
       file: true
 
-packages:
-  SymbolPicker:
-    github: xnth97/SymbolPicker
-    from: 1.6.0
-  TOMLKit:
-    github: LebJe/TOMLKit
-    from: 0.6.0
-  Yams:
-    github: jpsim/Yams
-    from: 5.2.0
-  Sparkle:
-    github: sparkle-project/Sparkle
-    from: 2.7.0
-  KeyboardShortcuts:
-    github: wojciech-kulik/KeyboardShortcuts
-    branch: main
-
 targets:
   FlashSpace:
     type: application
@@ -38,9 +21,7 @@ targets:
       - path: FlashSpace/Resources
     info:
       path: FlashSpace/Info.plist
-      properties:
-        SUPublicEDKey: hbvsYKL66p7w+2WUBbAqOvUcUNckSstWcrwTaCBwZJM=
-        SUFeedURL: https://wojciechkulik.pl/FlashSpace/appcast.xml
+      properties: {}
 
     settings:
       base:
@@ -66,46 +47,3 @@ targets:
 
     dependencies:
       - sdk: ServiceManagement.framework
-      - package: SymbolPicker
-      - package: TOMLKit
-      - package: Yams
-      - package: Sparkle
-      - package: KeyboardShortcuts
-
-    preBuildScripts:
-      - name: Run SwiftLint
-        script: |
-          if [ "$GITHUB_ACTIONS" != "true" ]; then
-            /opt/homebrew/bin/swiftlint --use-alternative-excluding
-          fi
-        basedOnDependencyAnalysis: false
-        showEnvVars: false
-      - name: Run SwiftFormat
-        script: |
-          if [ "$GITHUB_ACTIONS" != "true" ]; then
-            /opt/homebrew/bin/swiftformat --lint ${SRCROOT} --config .swiftformat || exit 0
-          fi
-        basedOnDependencyAnalysis: false
-        showEnvVars: false
-    postBuildScripts:
-      - name: Build & Copy FlashSpace CLI
-        script: |
-          SOURCE_PATH="FlashSpaceCLI/.build/flashspace"
-          DESTINATION_PATH="${BUILT_PRODUCTS_DIR}/${PRODUCT_NAME}.app/Contents/Resources/"
-
-          if [ ! -e "$SOURCE_PATH" ] || [ "$CONFIGURATION" == "Release" ]; then
-            echo "Building FlashSpace CLI"
-            swift build --arch x86_64 -c release --package-path FlashSpaceCLI
-            swift build --arch arm64 -c release --package-path FlashSpaceCLI
-            lipo -create \
-              FlashSpaceCLI/.build/arm64-apple-macosx/release/flashspace \
-              FlashSpaceCLI/.build/x86_64-apple-macosx/release/flashspace \
-              -output FlashSpaceCLI/.build/flashspace
-          else
-            echo "FlashSpace CLI already built"
-          fi
-
-          echo "Copying FlashSpace CLI from $SOURCE_PATH to $DESTINATION_PATH"
-          cp "$SOURCE_PATH" "$DESTINATION_PATH"
-        basedOnDependencyAnalysis: false
-        showEnvVars: false

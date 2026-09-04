@@ -2,8 +2,6 @@
 //  FlashSpaceApp.swift
 //  FlashSpace
 //
-//  Created by Wojciech Kulik on 19/01/2025.
-//
 
 import SwiftUI
 
@@ -12,22 +10,8 @@ struct FlashSpaceApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     var body: some Scene {
-        Window("⚡ FlashSpace v\(AppConstants.version)", id: "main") {
-            MainView()
+        MenuBarExtra("⚡ FlashSpace", systemImage: "rectangle.fill.on.rectangle.fill") {
+            Button("Quit") { NSApplication.shared.terminate(nil) }
         }
-        .windowResizability(.contentSize)
-
-        Window("Settings", id: "settings") {
-            SettingsView()
-        }
-        .windowResizability(.contentSize)
-
-        Window("FlashSpace - What's New", id: "whats-new") {
-            WhatsNewView()
-        }
-        .windowResizability(.contentSize)
-        .defaultPosition(.center)
-
-        FlashSpaceMenuBar()
     }
 }

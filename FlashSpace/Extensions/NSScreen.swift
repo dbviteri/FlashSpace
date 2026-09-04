@@ -20,6 +20,18 @@ extension NSScreen {
         )
     }
 
+    /// visibleFrame converted to AX coordinates where (0,0) is the
+    /// top-left corner relative to the main screen's top-left corner.
+    var normalizedVisibleFrame: CGRect {
+        let mainScreen = NSScreen.screens[0]
+        return NSRect(
+            x: visibleFrame.origin.x,
+            y: mainScreen.frame.height - visibleFrame.origin.y - visibleFrame.height,
+            width: visibleFrame.width,
+            height: visibleFrame.height
+        )
+    }
+
     static func isConnected(_ display: DisplayName) -> Bool {
         NSScreen.screens.contains { $0.localizedName == display }
     }

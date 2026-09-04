@@ -25,9 +25,8 @@ extension NSRunningApplication {
     }
 
     var allDisplays: Set<DisplayName> {
-        allWindows
-            .compactMap { $0.frame.getDisplay() }
-            .asSet
+        Set(allWindows
+            .compactMap { $0.frame.getDisplay() })
     }
 
     var mainWindow: AXUIElement? {

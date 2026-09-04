@@ -17,7 +17,9 @@ enum Logger {
     static func log(_ message: String) {
         #if DEBUG
         let dateString = dateFormatter.string(from: Date())
-        print("\(dateString): \(message)")
+        // NSLog instead of print: unbuffered, so logs are visible
+        // immediately when stdout is redirected to a file.
+        NSLog("%@", "\(dateString): \(message)")
         #endif
     }
 
