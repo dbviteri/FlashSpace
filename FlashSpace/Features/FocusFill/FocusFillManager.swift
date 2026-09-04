@@ -62,16 +62,25 @@ final class FocusFillManager {
 
         hideOtherApps(except: app)
 
-        // Small delay: the newly activated window may not be ready via AX yet
+        // Small delay: the newly activated window may not be ready via AX yet.
+        // Guarded: if focus already moved on, this run is stale - abort it.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard self?.isStillFrontmost(app) == true else { return }
             self?.fillFocusedWindow(of: app, attempt: 1)
         }
 
         // Delayed sweep: catch apps that reappeared or were missed
-        // (e.g. slow-activating apps like Chrome unhiding late)
+        // (e.g. slow-activating apps like Chrome unhiding late).
+        // Same staleness guard: never hide on behalf of an app that
+        // is no longer focused, or we'd hide the newly focused app.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            guard self?.isStillFrontmost(app) == true else { return }
             self?.hideOtherApps(except: app, sweep: true)
         }
+    }
+
+    private func isStillFrontmost(_ app: NSRunningApplication) -> Bool {
+        NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier
     }
 
     private func hideOtherApps(except focusedApp: NSRunningApplication, sweep: Bool = false) {
@@ -79,13 +88,10 @@ final class FocusFillManager {
             where other.activationPolicy == .regular
             && other.processIdentifier != focusedApp.processIdentifier
             && !other.isHidden {
-            // NOTE: hide() return value is unreliable (returns NO even on
-            // success on recent macOS), so it is intentionally ignored.
+            // NOTE: hide() return value and an immediate isHidden read are
+            // both unreliable, so neither is logged as a result here.
             _ = other.hide()
-            Logger.log(
-                "\(sweep ? "RE-HIDE" : "HIDE"): \(other.localizedName ?? "")" +
-                    ", isHidden now: \(other.isHidden)"
-            )
+            Logger.log("\(sweep ? "RE-HIDE" : "HIDE"): \(other.localizedName ?? "")")
         }
     }
 
@@ -112,6 +118,12 @@ final class FocusFillManager {
         if window.isMinimized {
             window.minimize(false)
         }
+
+        Logger.log(
+            "WINDOW: \(app.localizedName ?? "") role=\(window.role ?? "?")" +
+                " subrole=\(window.subrole ?? "?") title=\(window.title ?? "?")" +
+                " frame=\(window.frame.map { "\($0)" } ?? "?")"
+        )
 
         guard let screen = currentScreen(for: window) else { return }
         DimOverlay.shared.show(on: screen)
