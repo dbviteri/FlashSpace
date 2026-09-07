@@ -31,6 +31,19 @@ final class DimOverlay {
         }
     }
 
+    func hide() {
+        guard let overlay = window, overlay.isVisible else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.15
+            overlay.animator().alphaValue = 0
+        } completionHandler: {
+            // Only order out if the fade wasn't superseded by a new show()
+            if overlay.alphaValue == 0 {
+                overlay.orderOut(nil)
+            }
+        }
+    }
+
     private func makeWindow() -> NSWindow {
         let overlay = NSWindow(
             contentRect: .zero,
@@ -45,6 +58,9 @@ final class DimOverlay {
         overlay.animationBehavior = .none
         // Below normal app windows (level 0), above the desktop.
         overlay.level = NSWindow.Level(rawValue: -1)
+        // stationary: pinned during Mission Control / Show Desktop so the
+        // overlay never slides around as a "shadow". FocusFillManager hides
+        // it via watchdog while the filled window is off screen.
         overlay.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         window = overlay
         return overlay
