@@ -190,23 +190,75 @@ final class FocusFillManager {
         fillFocusedWindow(of: app, attempt: 1)
     }
 
-    /// Focused/main element, but only when it is a real window. Finder with
+    /// Focused/main element, but only when it is a real main window. Finder with
     /// no windows exposes the desktop icon view (AXScrollArea) as its focused
     /// element - treating that as a window dims the bare desktop.
+    /// Inner windows (dialogs, sheets, popovers, drawers, floating panels)
+    /// must never be resized - only main windows are fillable. When focus is
+    /// on an inner window, fall back to the main window; when neither is a
+    /// main window, return nil so no resize is attempted.
     private func focusableWindow(of app: NSRunningApplication) -> AXUIElement? {
         let appElement = AXUIElementCreateApplication(app.processIdentifier)
-        let candidate = (appElement.getAttribute(.focusedWindow) as AXUIElement?)
-            ?? (appElement.getAttribute(.mainWindow) as AXUIElement?)
-        guard let candidate else { return nil }
-        guard candidate.role == kAXWindowRole else {
-            Logger.log(
-                "NON-WINDOW: \(app.localizedName ?? "") role=\(candidate.role ?? "?")" +
-                    " subrole=\(candidate.subrole ?? "?") - ignoring"
-            )
-            return nil
+        let focused = appElement.getAttribute(.focusedWindow) as AXUIElement?
+        let main = appElement.getAttribute(.mainWindow) as AXUIElement?
+
+        // Prefer the focused window when it is itself a main window
+        // (correct window in multi-window apps). Otherwise fall back to
+        // the main window so inner dialogs/sheets never get resized.
+        if let focused, isMainFillableWindow(focused) {
+            return focused
         }
-        return candidate
+        if let main, isMainFillableWindow(main) {
+            if focused != nil {
+                Logger.log(
+                    "INNER-SKIP: \(app.localizedName ?? "") focused" +
+                        " role=\(focused?.role ?? "?")" +
+                        " subrole=\(focused?.subrole ?? "?")" +
+                        " isMain=\(focused?.isMain ?? false)" +
+                        " - using main window instead"
+                )
+            }
+            return main
+        }
+        if focused != nil || main != nil {
+            Logger.log(
+                "NON-MAIN: \(app.localizedName ?? "")" +
+                    " focused role=\(focused?.role ?? "nil")" +
+                    " subrole=\(focused?.subrole ?? "nil")" +
+                    " isMain=\(focused?.isMain ?? false)" +
+                    " main role=\(main?.role ?? "nil")" +
+                    " subrole=\(main?.subrole ?? "nil")" +
+                    " isMain=\(main?.isMain ?? false)" +
+                    " - ignoring"
+            )
+        }
+        return nil
     }
+
+    /// True only for real main windows. Rejects non-windows (e.g. Finder's
+    /// desktop AXScrollArea) and inner windows (dialogs, sheets, popovers,
+    /// drawers, floating panels) which must never be resized.
+    private func isMainFillableWindow(_ window: AXUIElement) -> Bool {
+        guard window.role == kAXWindowRole else {
+            return false
+        }
+        // Known inner-window subroles. Anything else (AXStandardWindow,
+        // nil/unknown) is treated as a main window candidate (fail-open).
+        if let subrole = window.subrole, Self.innerWindowSubroles.contains(subrole) {
+            return false
+        }
+        return true
+    }
+
+    private static let innerWindowSubroles: Set<String> = [
+        "AXDialog",
+        "AXSystemDialog",
+        "AXSheet",
+        "AXDrawer",
+        "AXPopover",
+        "AXFloatingWindow",
+        "AXSystemFloatingWindow",
+    ]
 
     private func hideOtherApps(except focusedApp: NSRunningApplication, sweep: Bool = false) {
         for other in NSWorkspace.shared.runningApplications
@@ -248,7 +300,8 @@ final class FocusFillManager {
 
         Logger.log(
             "WINDOW: \(app.localizedName ?? "") role=\(window.role ?? "?")" +
-                " subrole=\(window.subrole ?? "?") title=\(window.title ?? "?")" +
+                " subrole=\(window.subrole ?? "?") isMain=\(window.isMain)" +
+                " title=\(window.title ?? "?")" +
                 " frame=\(window.frame.map { "\($0)" } ?? "?")"
         )
 
